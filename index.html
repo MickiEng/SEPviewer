@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Workbook Viewer</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+}
+
+#topBar {
+  /* --- FIX: Apply the Scorecard Modal Header Gradient to the Top Bar --- */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  /* --- RETAIN: Border and Padding --- */
+  border-bottom: 2px solid #ccc;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+#fileInput {
+  padding: 5px 10px;
+  /* Adjust color for contrast against dark background */
+  color: transparent; /* Makes the text invisible */
+  border: none; /* Removes any default input border */
+  background: transparent; /* Ensures it blends with the dark topBar */
+  width: 130px; /* Gives the button enough room */
+}
+
+/* New rule to style the button part of the file input */
+#fileInput::-webkit-file-upload-button {
+  visibility: hidden;
+}
+
+#fileInput::before {
+  content: 'Choose File'; /* Custom button text */
+  color: white; /* Text color */
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2); /* Same style as your sheet tabs */
+  border: 1px solid white;
+  border-radius: 3px;
+  padding: 6px 12px;
+  outline: none;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+#fileInput:hover::before {
+  background: rgba(255, 255, 255, 0.35); /* Hover effect */
+}
+#fileName {
+  font-weight: bold;
+  /* Set text color to white for visibility */
+  color: white; 
+}
+
+#sheetTabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.sheetTab {
+  padding: 6px 12px;
+  /* Light button color against the dark gradient */
+  border: 1px solid #ffffff; 
+  background: rgba(255, 255, 255, 0.2); /* Semi-transparent white */
+  color: white;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.sheetTab:hover {
+  background: rgba(255, 255, 255, 0.35); 
+}
+
+.sheetTab.active {
+  background: #ffffff; /* Solid white for active tab */
+  color: #667eea; /* Color of the gradient start for text contrast */
+  border-color: #ffffff;
+}
+
+#filterBar {
+  background: #fafafa;
+  border-bottom: 1px solid #ddd;
+  padding: 10px;
+  display: none;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+#filterBar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+#tableContainer {
+  display: none;
+  height: calc(100vh - 120px);
+  overflow: auto;
+  position: relative;
+}
+
+table {
+  border-collapse: collapse;
+  background: white;
+}
+
+th, td {
+  /* Original default border restored */
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ----------------------------------------------------------------------------------- */
+/* FIX: CENTER ALL HEADER TEXT */
+th {
+  text-align: center; 
+}
+/* ----------------------------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------------------------- */
+/* PROGRAM GROUP COLORS (DARKER HEADERS, LIGHTER DATA CELLS) */
+/* ----------------------------------------------------------------------------------- */
+
+/* LPN (6-11) Data Cells: #FFEEEE */
+td[data-col-index="6"], td[data-col-index="7"], td[data-col-index="8"], td[data-col-index="9"], td[data-col-index="10"], td[data-col-index="11"] {
+    background: #FFEEEE;
+}
+/* LPN Header & Sub-Headers */
+th[data-col-index="6"], th[data-col-index="7"], th[data-col-index="8"], th[data-col-index="9"], th[data-col-index="10"], th[data-col-index="11"]
+{ background: #FFC2C2 !important; }
+
+
+/* ADN (12-17) Data Cells: #FFF4E7 */
+td[data-col-index="12"], td[data-col-index="13"], td[data-col-index="14"], td[data-col-index="15"], td[data-col-index="16"], td[data-col-index="17"] {
+    background: #FFF4E7;
+}
+/* ADN Header & Sub-Headers */
+th[data-col-index="12"], th[data-col-index="13"], th[data-col-index="14"], th[data-col-index="15"], th[data-col-index="16"], th[data-col-index="17"]
+{ background: #FFE3C0 !important; }
+
+
+/* BSN (18-23) Data Cells: #E7FFE7 */
+td[data-col-index="18"], td[data-col-index="19"], td[data-col-index="20"], td[data-col-index="21"], td[data-col-index="22"], td[data-col-index="23"] {
+    background: #E7FFE7;
+}
+/* BSN Header & Sub-Headers */
+th[data-col-index="18"], th[data-col-index="19"], th[data-col-index="20"], th[data-col-index="21"], th[data-col-index="22"], th[data-col-index="23"]
+{ background: #C4FFC4 !important; }
+
+
+/* RN-BSN (24-29) Data Cells: #E7F6FF */
+td[data-col-index="24"], td[data-col-index="25"], td[data-col-index="26"], td[data-col-index="27"], td[data-col-index="28"], td[data-col-index="29"] {
+    background: #E7F6FF;
+}
+/* RN-BSN Header & Sub-Headers */
+th[data-col-index="24"], th[data-col-index="25"], th[data-col-index="26"], th[data-col-index="27"], th[data-col-index="28"], th[data-col-index="29"]
+{ background: #C3E5FF !important; }
+
+
+/* MSN (30-35) Data Cells: #E8EAFF */
+td[data-col-index="30"], td[data-col-index="31"], td[data-col-index="32"], td[data-col-index="33"], td[data-col-index="34"], td[data-col-index="35"] {
+    background: #E8EAFF;
+}
+/* MSN Header & Sub-Headers */
+th[data-col-index="30"], th[data-col-index="31"], th[data-col-index="32"], th[data-col-index="33"], th[data-col-index="34"], th[data-col-index="35"]
+{ background: #C8CBFF !important; }
+
+
+/* FNP (36-41) Data Cells: #F4ECFF */
+td[data-col-index="36"], td[data-col-index="37"], td[data-col-index="38"], td[data-col-index="39"], td[data-col-index="40"], td[data-col-index="41"] {
+    background: #F4ECFF;
+}
+/* FNP Header & Sub-Headers */
+th[data-col-index="36"], th[data-col-index="37"], th[data-col-index="38"], th[data-col-index="39"], th[data-col-index="40"], th[data-col-index="41"]
+{ background: #E4C9FF !important; }
+
+/* ----------------------------------------------------------------------------------- */
+/* NEW FIX: USE BOX-SHADOW FOR HOVER EFFECT */
+/* ----------------------------------------------------------------------------------- */
+
+/* The inset shadow simulates a background color, layered over the cell's background */
+tbody tr:hover td {
+  /* Using a semi-transparent gray to dim the background */
+  box-shadow: inset 0 0 0 1000px rgba(245, 245, 245, 0.7); 
+  background: transparent; /* Ensure background is transparent so the shadow works */
+}
+tbody tr:hover td.sticky-col {
+  box-shadow: inset 0 0 0 1000px rgba(245, 245, 245, 0.7);
+  background: transparent;
+}
+
+
+th {
+  /* RETAINED: position: sticky, top: 0, etc. */
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #e8e8e8; /* Base background for general TH (non-program) */
+}
+
+.sticky-col {
+  position: sticky;
+  background: white;
+  z-index: 3;
+}
+
+th.sticky-col {
+  z-index: 10;
+  background: #e8e8e8;
+}
+
+.programHeader {
+  /* text-align: center is inherited from 'th' */
+  font-weight: bold;
+}
+
+/* Fallback/Base color for program headers (Original default for frozen cols is #e8e8e8) */
+.programHeader {
+  background: #d0d0d0; /* Original color, only used if the above specific rules fail */
+}
+
+
+tbody tr {
+  cursor: pointer;
+}
+
+
+.qi-boundary td,
+.qi-boundary td.sticky-col {
+  border-top: 3px solid #333;
+}
+
+.tooltip {
+  position: fixed;
+  background: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  max-width: 400px;
+  word-wrap: break-word;
+  z-index: 1000;
+  font-size: 12px;
+  display: none;
+  pointer-events: none;
+}
+
+#notice {
+  padding: 10px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  margin: 10px;
+  display: none;
+}
+
+#emptyMessage {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  display: none;
+}
+
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-overlay.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  max-width: 1200px;
+  max-height: 90vh;
+  width: 100%;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px 30px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-body {
+  padding: 30px;
+}
+
+.modal-section {
+  margin-bottom: 30px;
+}
+
+.modal-section:last-child {
+  margin-bottom: 0;
+}
+
+.modal-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.modal-field {
+  background: #f8f9fa;
+  padding: 12px 15px;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.modal-field.full-width {
+  grid-column: 1 / -1;
+  background: #e8f4f8;
+  border-left: 4px solid #2196F3;
+  padding: 15px 20px;
+}
+
+.modal-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.modal-field.full-width .modal-field-label {
+  font-size: 13px;
+  color: #2196F3;
+}
+
+.modal-field-value {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.modal-field.full-width .modal-field-value {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.program-data {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.program-card {
+  /* Base border style for the card is now in JS */
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.program-card-header {
+  /* This style will be overridden by the inline style in JS */
+  background: #667eea;
+  color: white;
+  padding: 10px 15px;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  /* IMPORTANT: Ensure text color is white/light against the colored background */
+  color: white; 
+}
+
+.program-card-body {
+  padding: 12px;
+}
+
+.program-field {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.program-field:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.program-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.program-field-value {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+}
+</style>
+</head>
+<body>
+
+<div id="topBar">
+  <input type="file" id="fileInput" accept=".xlsx,.xls">
+  <span id="fileName"></span>
+  <div id="sheetTabs"></div>
+</div>
+
+<div id="filterBar">
+  <label><input type="checkbox" class="programFilter" value="LPN" checked> LPN</label>
+  <label><input type="checkbox" class="programFilter" value="ADN" checked> ADN</label>
+  <label><input type="checkbox" class="programFilter" value="BSN" checked> BSN</label>
+  <label><input type="checkbox" class="programFilter" value="RN-BSN" checked> RN-BSN</label>
+  <label><input type="checkbox" class="programFilter" value="MSN" checked> MSN</label>
+  <label><input type="checkbox" class="programFilter" value="FNP" checked> FNP</label>
+</div>
+
+<div id="notice"></div>
+<div id="emptyMessage">No programs selected. Please check at least one program above.</div>
+
+<div id="tableContainer">
+  <table id="mainTable"></table>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="modal-overlay" id="rowModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Row Details</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+let workbook = null;
+let allSheets = {};
+let standardLookup = new Map();
+let qiLookup = new Map();
+let currentSheetIndex = 0;
+
+// *** RETAINED: Program Color Map ***
+const programColors = {
+    'LPN': { dark: '#FFC2C2', light: '#FFEEEE' }, // Red shades
+    'ADN': { dark: '#FFE3C0', light: '#FFF4E7' }, // Orange shades
+    'BSN': { dark: '#C4FFC4', light: '#E7FFE7' }, // Green shades
+    'RN-BSN': { dark: '#C3E5FF', light: '#E7F6FF' }, // Blue shades
+    'MSN': { dark: '#C8CBFF', light: '#E8EAFF' }, // Indigo shades
+    'FNP': { dark: '#E4C9FF', light: '#F4ECFF' }  // Violet shades
+};
+
+// *** MODIFICATION START: Updated Conditional Status Colors ***
+const statusColors = {
+    'met': '#689F38',     // Dark Forest Green
+    'not met': '#D32F2F',  // Dark Crimson Red
+    'tbd': '#FFC107'      // Amber Yellow for TBD
+};
+// *** MODIFICATION END ***
+
+const programs = [
+  { name: 'LPN', startCol: 6, endCol: 11 },
+  { name: 'ADN', startCol: 12, endCol: 17 },
+  { name: 'BSN', startCol: 18, endCol: 23 },
+  { name: 'RN-BSN', startCol: 24, endCol: 29 },
+  { name: 'MSN', startCol: 30, endCol: 35 },
+  { name: 'FNP', startCol: 36, endCol: 41 }
+];
+
+const subcolumnNames = ['PPY', 'PY', 'CY', 'Status', 'Action Items', 'Analysis of Action'];
+const staticColumnNames = ['Standard', 'QI', 'Expected Level', 'Responsible Party', 'Assessment Method', 'Time Frame'];
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  document.getElementById('fileName').textContent = file.name;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    workbook = XLSX.read(data, { type: 'array' });
+    
+    parseWorkbook();
+    createSheetTabs();
+    showSheet(0);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function parseWorkbook() {
+  const sheetNames = workbook.SheetNames;
+  const notices = [];
+  
+  for (let i = 0; i < Math.min(7, sheetNames.length); i++) {
+    const sheet = workbook.Sheets[sheetNames[i]];
+    allSheets[i] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  }
+  
+  if (allSheets[5]) {
+    const sheet6 = allSheets[5];
+    for (let i = 1; i < sheet6.length; i++) {
+      const standard = sheet6[i][0];
+      const description = sheet6[i][1];
+      if (standard && description) {
+        standardLookup.set(String(standard).trim(), description);
+      }
+    }
+  } else {
+    notices.push('Sheet 6 (Standards) is missing. Tooltips for Column A will be unavailable.');
+  }
+  
+  if (allSheets[6]) {
+    const sheet7 = allSheets[6];
+    for (let i = 1; i < sheet7.length; i++) {
+      const qi = sheet7[i][0];
+      const description = sheet7[i][1];
+      if (qi && description) {
+        qiLookup.set(String(qi).trim(), description);
+      }
+    }
+  } else {
+    notices.push('Sheet 7 (QI) is missing. Tooltips for Column B will be unavailable.');
+  }
+  
+  if (notices.length > 0) {
+    const noticeDiv = document.getElementById('notice');
+    noticeDiv.innerHTML = notices.join('<br>');
+    noticeDiv.style.display = 'block';
+  }
+}
+
+function createSheetTabs() {
+  const tabsContainer = document.getElementById('sheetTabs');
+  tabsContainer.innerHTML = '';
+  
+  const romanNumerals = ['I', 'II', 'III', 'IV', 'V'];
+  
+  for (let i = 0; i < Math.min(5, workbook.SheetNames.length); i++) {
+    const btn = document.createElement('button');
+    btn.className = 'sheetTab';
+    btn.textContent = `Standard ${romanNumerals[i]}`;
+    btn.onclick = () => showSheet(i);
+    tabsContainer.appendChild(btn);
+  }
+}
+
+function showSheet(index) {
+  currentSheetIndex = index;
+  
+  document.querySelectorAll('.sheetTab').forEach((tab, i) => {
+    tab.classList.toggle('active', i === index);
+  });
+  
+  if (index >= 0 && index <= 4) {
+    document.getElementById('filterBar').style.display = 'flex';
+    document.getElementById('tableContainer').style.display = 'block';
+    renderMainSheet();
+  } else {
+    document.getElementById('filterBar').style.display = 'none';
+    document.getElementById('tableContainer').style.display = 'none';
+  }
+}
+
+function getSelectedPrograms() {
+  const selected = [];
+  document.querySelectorAll('.programFilter:checked').forEach(cb => {
+    const prog = programs.find(p => p.name === cb.value);
+    if (prog) selected.push(prog);
+  });
+  return selected;
+}
+
+function truncateText(text, maxLength = 20) {
+  const str = String(text);
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength) + '...';
+}
+
+function renderMainSheet() {
+  const sheetData = allSheets[currentSheetIndex];
+  if (!sheetData || sheetData.length < 4) return;
+  
+  const selectedPrograms = getSelectedPrograms();
+  
+  if (selectedPrograms.length === 0) {
+    document.getElementById('emptyMessage').style.display = 'block';
+    document.getElementById('tableContainer').style.display = 'none';
+    return;
+  } else {
+    document.getElementById('emptyMessage').style.display = 'none';
+    document.getElementById('tableContainer').style.display = 'block';
+  }
+  
+  const table = document.getElementById('mainTable');
+  table.innerHTML = '';
+  
+  const thead = document.createElement('thead');
+  
+  const row1 = document.createElement('tr');
+  // Add static/frozen columns to row 1
+  for (let i = 0; i < 6; i++) {
+    const th = document.createElement('th');
+    th.textContent = staticColumnNames[i];
+    th.rowSpan = 2;
+    th.className = 'sticky-col';
+    th.dataset.colIndex = i;
+    row1.appendChild(th);
+  }
+  // Add Program Headers (merged cells) to row 1
+  selectedPrograms.forEach(prog => {
+    const th = document.createElement('th');
+    th.className = 'programHeader';
+    th.textContent = prog.name;
+    th.colSpan = 6;
+    
+    // *** RETAINED FIX: Apply background color directly via inline style for Row 1 Header ***
+    const colors = programColors[prog.name];
+    if (colors) {
+        th.style.backgroundColor = colors.dark;
+    }
+    // *** END FIX ***
+    
+    row1.appendChild(th);
+  });
+  thead.appendChild(row1);
+  
+  const row2 = document.createElement('tr');
+  // Add Sub-column Headers (non-frozen) to row 2
+  selectedPrograms.forEach(prog => {
+    subcolumnNames.forEach((subname, subIdx) => {
+      const th = document.createElement('th');
+      th.textContent = subname;
+      
+      // *** RETAINED FIX: Apply sub-header background color directly via inline style for Row 2 Header ***
+      const colors = programColors[prog.name];
+      if (colors) {
+          th.style.backgroundColor = colors.dark;
+      }
+      // *** END FIX ***
+
+      // *** RETAINED FIX: Ensure row 2 headers stick below row 1 ***
+      th.classList.add('program-sub-header'); 
+      th.style.borderBottom = '1px solid #ddd';
+      
+      th.dataset.colIndex = prog.startCol + subIdx;
+      row2.appendChild(th);
+    });
+  });
+  thead.appendChild(row2);
+  
+  // *** REMOVED: The blank Row 3 is removed to simplify header structure ***
+  
+  table.appendChild(thead);
+  
+  const tbody = document.createElement('tbody');
+  let prevQI = null;
+  
+  // *** NEW FIX START: Row Collapse Logic ***
+  const lastProgramColIndex = programs[programs.length - 1].endCol;
+
+  for (let rowIdx = 3; rowIdx < sheetData.length; rowIdx++) {
+    const row = sheetData[rowIdx];
+    
+    let hasProgramData = false;
+    
+    // Check for content in the program section (index 6 to end)
+    for (let colIdx = 6; colIdx <= lastProgramColIndex; colIdx++) {
+        const content = String(row[colIdx]).trim();
+        if (content.length > 0) {
+            hasProgramData = true;
+            break;
+        }
+    }
+    
+    // Check if the static data columns (A: Standard, B: QI) are present
+    const standardContent = String(row[0]).trim();
+    const qiContent = String(row[1]).trim();
+    
+    // Only continue if Standard and QI are filled AND there is at least one piece of data 
+    // in the program columns.
+    if (standardContent.length === 0 || qiContent.length === 0 || !hasProgramData) {
+        continue; // Skip this row (it's either a blank benchmark or fully blank)
+    }
+    // *** NEW FIX END ***
+
+    const tr = document.createElement('tr');
+    
+    tr.dataset.rowIndex = rowIdx;
+    
+    const currentQI = String(row[1] || '').trim();
+    if (prevQI !== null && currentQI !== prevQI && currentQI !== '') {
+      tr.classList.add('qi-boundary');
+    }
+    prevQI = currentQI;
+    
+    tr.addEventListener('click', function() {
+      openModal(rowIdx, row, selectedPrograms);
+    });
+    
+    for (let colIdx = 0; colIdx < 6; colIdx++) {
+      const td = document.createElement('td');
+      const fullContent = String(row[colIdx] || '');
+      td.textContent = truncateText(fullContent, 20);
+      td.className = 'sticky-col';
+      td.dataset.colIndex = colIdx;
+      
+      // *** RETAINED FIX: Tooltip conditional attachment for static cols ***
+      const contentStr = String(fullContent);
+      if (contentStr.length > 20 || colIdx === 0 || colIdx === 1) {
+        td.addEventListener('mouseenter', (e) => {
+          if (colIdx === 0) {
+            showStandardTooltip(e, fullContent);
+          } else if (colIdx === 1) {
+            showQITooltip(e, fullContent);
+          } else {
+            showCellTooltip(e, contentStr);
+          }
+        });
+        td.addEventListener('mouseleave', hideTooltip);
+      }
+      
+      tr.appendChild(td);
+    }
+    
+    selectedPrograms.forEach(prog => {
+      for (let colIdx = prog.startCol; colIdx <= prog.endCol; colIdx++) {
+        let fullContent = row[colIdx];
+        
+        // *** RETAINED FIX: Percentage Formatting Logic ***
+        const subColIndex = colIdx - prog.startCol;
+        if (subColIndex >= 0 && subColIndex <= 2) { 
+            const numericValue = parseFloat(fullContent);
+            if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 1) {
+                fullContent = (numericValue * 100).toFixed(0) + '%';
+            }
+        }
+        // *** END RETAINED FIX ***
+        
+        const td = document.createElement('td');
+        const contentStr = String(fullContent);
+        td.textContent = truncateText(contentStr, 20);
+        td.dataset.colIndex = colIdx;
+
+        // *** RETAINED FIX: Apply data cell background color via inline style (Program Shading) ***
+        const colors = programColors[prog.name];
+        if (colors) {
+            td.style.backgroundColor = colors.light;
+        }
+        
+        // *** MODIFICATION START: Apply Status Coloring (Includes TBD) ***
+        if (subColIndex === 3) { // 'Status' column is the 4th sub-column (index 3)
+            const status = contentStr.toLowerCase().trim();
+            if (statusColors[status]) {
+                td.style.backgroundColor = statusColors[status];
+                // Check if color is light (yellow) or dark (red/green) to set text color
+                if (status === 'tbd') {
+                    td.style.color = '#333'; // Darker text for yellow background
+                } else {
+                    td.style.color = 'white'; // White text for red/green backgrounds
+                }
+            } else {
+                // If the status is not 'met', 'not met', or 'tbd' (e.g., 'N/A' or blank), 
+                // revert to program light color and default text color.
+                if (colors) {
+                    td.style.backgroundColor = colors.light;
+                }
+                td.style.color = '#333';
+            }
+        }
+        // *** MODIFICATION END ***
+
+        
+        // *** RETAINED FIX: Only attach tooltip listeners if content is longer than limit ***
+        if (contentStr.length > 20) {
+          td.addEventListener('mouseenter', (e) => showCellTooltip(e, contentStr));
+          td.addEventListener('mouseleave', hideTooltip);
+        }
+        
+        tr.appendChild(td);
+      }
+    });
+    
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  
+  // *** FIX START: Apply vertical sticky offset for row 2 headers ***
+  applyVerticalHeaderOffsets(row1, row2);
+  // *** FIX END ***
+  
+  applyStickyOffsets();
+}
+
+/**
+ * FIX FUNCTION: Calculates the height of the first header row (row1)
+ * and sets the 'top' CSS property for the second header row's (row2)
+ * <th> elements to that height, ensuring they stick right below row1.
+ * @param {HTMLTableRowElement} headerRow1 - The first <tr> element in <thead>
+ * @param {HTMLTableRowElement} headerRow2 - The second <tr> element in <thead>
+ */
+function applyVerticalHeaderOffsets(headerRow1, headerRow2) {
+  // Use a slight delay to ensure the browser has fully rendered the table
+  // and the offsetHeight calculation is accurate.
+  requestAnimationFrame(() => {
+    // 1. Get the height of the first header row (which contains the 2-row-spanning static cols and program names)
+    const row1Height = headerRow1.offsetHeight;
+    const topOffset = row1Height + 'px';
+    
+    // 2. Apply the calculated top offset to all non-frozen <th> in the second row
+    headerRow2.querySelectorAll('th').forEach(th => {
+      // Check for the class we added in renderMainSheet for explicit targeting
+      if (th.classList.contains('program-sub-header')) {
+        th.style.top = topOffset;
+        th.style.zIndex = 4; // Set z-index to 4, which is lower than the static <th> (10) and the top row <th> (5), but higher than tbody (implied 0-1), ensuring it stays above the scrolling content.
+      }
+    });
+
+    // 3. Update border for the static sticky column headers (rowSpan=2)
+    // Revert bottom border to default.
+    headerRow1.querySelectorAll('th.sticky-col').forEach(th => {
+        th.style.borderBottom = '1px solid #ddd';
+    });
+  });
+}
+// ---------------------------------------------------------------------
+
+function applyStickyOffsets() {
+  const stickyElements = document.querySelectorAll('.sticky-col[data-col-index]');
+  const widths = [0, 0, 0, 0, 0, 0];
+  
+  const colGroups = {};
+  stickyElements.forEach(el => {
+    const colIndex = parseInt(el.dataset.colIndex);
+    if (!colGroups[colIndex]) colGroups[colIndex] = [];
+    colGroups[colIndex].push(el);
+  });
+  
+  for (let i = 0; i < 6; i++) {
+    // Only use the first element of the group to measure width (e.g., the one in the header)
+    if (colGroups[i] && colGroups[i][0]) {
+      widths[i] = colGroups[i][0].offsetWidth;
+    }
+  }
+  
+  const offsets = [0];
+  for (let i = 1; i < 6; i++) {
+    offsets[i] = offsets[i-1] + widths[i-1];
+  }
+  
+  for (let i = 0; i < 6; i++) {
+    if (colGroups[i]) {
+      colGroups[i].forEach(el => {
+        el.style.left = offsets[i] + 'px';
+      });
+    }
+  }
+}
+
+function openModal(rowIdx, rowData, selectedPrograms) {
+  const modalBody = document.getElementById('modalBody');
+  modalBody.innerHTML = '';
+  
+  const benchmarkSection = document.createElement('div');
+  benchmarkSection.className = 'modal-section';
+  
+  const standardValue = String(rowData[0] || '');
+  const qiValue = String(rowData[1] || '');
+  
+  const standardDesc = standardLookup.get(standardValue.trim()) || 'Description unavailable';
+  const qiDesc = qiLookup.get(qiValue.trim()) || 'Description unavailable';
+  
+  benchmarkSection.innerHTML = `
+    <div class="modal-section-title">Benchmark Information</div>
+    <div class="modal-grid">
+      <div class="modal-field full-width">
+        <div class="modal-field-label">Standard ${standardValue}</div>
+        <div class="modal-field-value">${standardDesc}</div>
+      </div>
+      <div class="modal-field full-width">
+        <div class="modal-field-label">QI ${qiValue}</div>
+        <div class="modal-field-value">${qiDesc}</div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-field-label">${staticColumnNames[2]}</div>
+        <div class="modal-field-value">${String(rowData[2] || '—')}</div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-field-label">${staticColumnNames[3]}</div>
+        <div class="modal-field-value">${String(rowData[3] || '—')}</div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-field-label">${staticColumnNames[4]}</div>
+        <div class="modal-field-value">${String(rowData[4] || '—')}</div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-field-label">${staticColumnNames[5]}</div>
+        <div class="modal-field-value">${String(rowData[5] || '—')}</div>
+      </div>
+    </div>
+  `;
+  modalBody.appendChild(benchmarkSection);
+  
+  const programSection = document.createElement('div');
+  programSection.className = 'modal-section';
+  programSection.innerHTML = `<div class="modal-section-title">Program Data</div>`;
+  
+  const programContainer = document.createElement('div');
+  programContainer.className = 'program-data';
+  
+  selectedPrograms.forEach(prog => {
+    const card = document.createElement('div');
+    card.className = 'program-card';
+    
+    const colors = programColors[prog.name];
+    
+    // *** RETAINED FIX: Apply matching border color to the program card ***
+    if (colors) {
+        // Use the darker color for the border
+        card.style.border = `1px solid ${colors.dark}`;
+    }
+    // *** END FIX ***
+
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'program-card-header';
+    cardHeader.textContent = prog.name;
+    
+    // *** RETAINED FIX: Apply matching background color to the card header ***
+    if (colors) {
+        // Use the darker color for the background fill
+        cardHeader.style.backgroundColor = colors.dark;
+    } else {
+        // Keep the default background if color is missing
+        cardHeader.style.backgroundColor = '#667eea'; 
+    }
+    // *** END FIX ***
+    
+    card.appendChild(cardHeader);
+
+    const cardBody = document.createElement('div');
+    cardBody.className = 'program-card-body';
+    
+    subcolumnNames.forEach((subname, subIdx) => {
+      let value = rowData[prog.startCol + subIdx];
+      
+      // *** RETAINED FIX: Apply Percentage Formatting Logic to Modal View as well ***
+      if (subIdx >= 0 && subIdx <= 2) { 
+        const numericValue = parseFloat(value);
+        if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 1) {
+            value = (numericValue * 100).toFixed(0) + '%';
+        }
+      }
+      // *** END RETAINED FIX ***
+      
+      const originalValue = String(value || '—');
+      
+      // --- MODIFICATION START: Conditional Coloring for Status in Modal (Includes TBD) ---
+      let valueStyle = '';
+      if (subIdx === 3) { // 'Status' column
+          const status = originalValue.toLowerCase().trim();
+          if (statusColors[status]) {
+              valueStyle = `style="background-color: ${statusColors[status]}; color: ${status === 'tbd' ? '#333' : 'white'}; padding: 2px 4px; border-radius: 4px;"`;
+          }
+      }
+      // --- MODIFICATION END ---
+      
+      cardBody.innerHTML += `
+        <div class="program-field">
+          <div class="modal-field-label">${subname}</div>
+          <div class="modal-field-value"><span ${valueStyle}>${originalValue}</span></div>
+        </div>
+      `;
+    });
+    
+    card.appendChild(cardBody);
+    programContainer.appendChild(card);
+  });
+  
+  programSection.appendChild(programContainer);
+  modalBody.appendChild(programSection);
+  
+  document.getElementById('rowModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('rowModal').classList.remove('active');
+}
+
+document.getElementById('rowModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeModal();
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeModal();
+  }
+});
+
+function showStandardTooltip(e, value) {
+  const tooltip = document.getElementById('tooltip');
+  const description = standardLookup.get(String(value).trim()) || 'Description unavailable';
+  tooltip.textContent = description;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (e.pageX + 10) + 'px';
+  tooltip.style.top = (e.pageY + 10) + 'px';
+}
+
+function showQITooltip(e, value) {
+  const tooltip = document.getElementById('tooltip');
+  const description = qiLookup.get(String(value).trim()) || 'Description unavailable';
+  tooltip.textContent = description;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (e.pageX + 10) + 'px';
+  tooltip.style.top = (e.pageY + 10) + 'px';
+}
+
+function showCellTooltip(e, content) {
+  const contentStr = String(content || '');
+  if (!contentStr || contentStr.length <= 20) return; 
+  
+  const tooltip = document.getElementById('tooltip');
+  tooltip.textContent = contentStr;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (e.pageX + 10) + 'px';
+  tooltip.style.top = (e.pageY + 10) + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').style.display = 'none';
+}
+
+document.querySelectorAll('.programFilter').forEach(cb => {
+  cb.addEventListener('change', () => {
+    if (currentSheetIndex >= 0 && currentSheetIndex <= 4) {
+      renderMainSheet();
+    }
+  });
+});
+</script>
+
+</body>
+</html>
